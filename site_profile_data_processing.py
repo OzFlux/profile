@@ -263,12 +263,16 @@ def warra_raw():
         
 def warra_average():
     
+    def sub_func(fp):
+        df = pd.read_csv(fp, skiprows = [0, 2, 3], na_values = 'NAN')
+        df.index = pd.to_datetime(df.TIMESTAMP)
+        return df
+    
     # Create a dict to reference heights to valve numbers
     profile_n = [1, 2, 3, 4, 5, 6, 7, 8]
     profile_heights = [2, 4, 8, 16, 30, 42, 54, 70]
     heights_dict = dict(zip(profile_n, 
-                                           [str(height) for height in 
-                                            profile_heights]))
+                        [str(height) for height in profile_heights]))
     
     # Create a dict to correct the lag due to valve cycling
     lag_dict = {1: 105,
@@ -281,12 +285,17 @@ def warra_average():
                 8: 0}
 
     # Prepare df
-    file_in = pdp.file_select_dialog()
-    df = pd.read_csv(file_in, skiprows = [0, 2, 3])
-    df.index = pd.to_datetime(df.TIMESTAMP)
+    path = '/media/ian/36D6-0A0C/'
+    f_list = os.listdir(path)
+    fp_list = map(lambda x: os.path.join(path, x), f_list)
+    df = pd.concat(map(sub_func, fp_list))
+    df.sort_index(inplace = True)
+    df.drop_duplicates(inplace = True)
+    new_index = pd.date_range(df.index[0], df.index[-1], freq='15S')
+    df = df.reindex(new_index)      
     idx = df[df.valve_number == 8].index
     rslt_df = pd.DataFrame(index = idx)
-    
+
     # Cycle through time series and break out CO2 variable to individual 
     # heights on basis of valve number
     T_names = [var for var in df.columns if 'T_air' in var]
@@ -303,7 +312,7 @@ def warra_average():
     return rslt_df
 
 ###############################################################################
-# Warra
+# Whroo
 ###############################################################################
 
 def whroo():
