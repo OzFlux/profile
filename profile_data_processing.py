@@ -151,9 +151,7 @@ def check_ps(df, site_alt):
             p = (p0 * (1 - B * site_alt) ** A) / 1000
                           
             df['ps'] = p
-            
-            print p
-            
+                        
     return
             
 #------------------------------------------------------------------------------
@@ -192,7 +190,8 @@ def downsample_data(df, output_freq = 30, smooth_window = 0):
         upsample_df = local_df.resample('1T').interpolate()
         smooth_df = upsample_df.rolling(window = smooth_window, 
                                         center = True).mean()
-        downsample_df = smooth_df.resample(current_freq).pad()
+        downsample_df = smooth_df.resample(current_freq)
+#        downsample_df = smooth_df.resample(current_freq).pad()
     else:
         downsample_df = local_df
     
@@ -397,6 +396,8 @@ def main(site = None, site_alt = None, use_Tair = None,
           location documented in the message)
     """
     
+    reload(spdp)
+
     # Either prompt for already formatted file, or prompt for directory 
     # containing unformatted file/s
     if site is None:
@@ -411,9 +412,9 @@ def main(site = None, site_alt = None, use_Tair = None,
     check_ps(downsample_df, site_alt = site_alt)
     
     layers_df = make_layers_df(downsample_df, profile_obj)
-        
+       
     storage_df = calculate_CO2_storage(layers_df, profile_obj)
-    
+
     if plot_ts:
         plot_time_series(storage_df)
     if plot_diurnal_avg:
