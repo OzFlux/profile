@@ -263,10 +263,17 @@ def warra_raw():
         
 def warra_average():
     
-    def sub_func(fp):
+    def get_data(fp):
         df = pd.read_csv(fp, skiprows = [0, 2, 3], na_values = 'NAN')
         df.index = pd.to_datetime(df.TIMESTAMP)
         return df
+    
+    def get_valve_num(idx):
+        date_time = idx - dt.timedelta(seconds = 15)
+        add_sec = map(lambda x: x.minute % 2 * 60, date_time)
+        sec = map(lambda x: x.second, date_time)
+        true_sec = np.array(add_sec) + np.array(sec)
+        return true_sec / 15 + 1
     
     # Create a dict to reference heights to valve numbers
     profile_n = [1, 2, 3, 4, 5, 6, 7, 8]
@@ -284,15 +291,20 @@ def warra_average():
                 7: 15,
                 8: 0}
 
-    # Prepare df
+    # Prepare df: read in data and concatenate, sort by datetime index,
+    # drop dupes, drop cases where seconds are not divisible by 15, 
+    # reindex (thereby padding missing cases), then gapfill the valvenumber
     path = '/media/ian/36D6-0A0C/'
-    f_list = os.listdir(path)
-    fp_list = map(lambda x: os.path.join(path, x), f_list)
-    df = pd.concat(map(sub_func, fp_list))
+    fp_list = map(lambda x: os.path.join(path, x), os.listdir(path))
+    df = pd.concat(map(get_data, fp_list))
     df.sort_index(inplace = True)
     df.drop_duplicates(inplace = True)
+    df.drop(df[df.index.second % 15 != 0].index)
     new_index = pd.date_range(df.index[0], df.index[-1], freq='15S')
-    df = df.reindex(new_index)      
+    df = df.reindex(new_index)
+    df.valve_number = get_valve_num(df.index)
+    
+    # Make a new df for the results
     idx = df[df.valve_number == 8].index
     rslt_df = pd.DataFrame(index = idx)
 
