@@ -122,6 +122,8 @@ def calculate_CO2_storage(df, profile_obj):
         storage_df[storage_names_list[i]] = delta_layer_moles_CO2_per_sec
         
     storage_df['Sc_total'] = storage_df[storage_names_list].sum(axis = 1)
+    storage_df['Sc_total'] = np.where(storage_df['Sc_total'] == 0, np.nan, 
+                                      storage_df['Sc_total'])
         
     return storage_df
 #------------------------------------------------------------------------------
