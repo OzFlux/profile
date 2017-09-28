@@ -22,7 +22,8 @@ def get_site_data(site_name):
                   'howard springs': howard_springs,
                   'warra_avg': warra_average,
                   'warra_raw': warra_raw,
-                  'whroo': whroo} 
+                  'whroo': whroo,
+                  'wombat state forest': wombatstateforest} 
     
     return sites_dict[site_name]()
 
@@ -425,3 +426,73 @@ def whroo():
     return trunc_profile_df
 
 ###############################################################################
+# Wombat
+###############################################################################
+
+def wombatstateforest():
+        
+    def drop_data(df, drop_list):
+        for date_pair in drop_list:
+            df.loc[date_pair[0]: date_pair[1]] = np.nan
+        return df
+    
+    def filter_data(df, var_list, limits):
+        for var in var_list:
+            df.loc[(df[var] < limits[0]) | 
+                   (df[var] > limits[1])] = np.nan
+        return df
+    
+    def get_file_list(path, word):
+        f_list = filter(lambda x: word in x, os.listdir(path))
+        return map(lambda x: os.path.join(path, x), f_list)
+    
+    def open_data(f_path):
+        irga_df = pd.read_csv(f_path, skiprows = [0, 2, 3], na_values = 'NAN')
+        irga_df.index = pd.to_datetime(irga_df.TIMESTAMP)
+        return irga_df
+    
+    def prep_data(df, interval):
+        df.sort_index(inplace = True)
+        df = df[~df.index.duplicated(keep = 'first')]
+        new_index = pd.date_range(df.index[0], df.index[-1], freq = interval)
+        return df.reindex(new_index)
+        
+    
+    irga_drop_list = [['2012-11-10 13:00:00', '2013-03-04 15:54:00'],
+                      ['2014-09-22 06:52:00', '2014-10-01 08:10:00'],
+                      ['2014-11-30 04:20:00', '2014-12-10 07:40:00'],
+                      ['2015-10-06 03:12:00']]
+    
+    Ta_drop_list = [['2014-05-21 13:00:00', '2014-06-18 16:30:00']]
+    
+    path = '/home/ian/OzFlux/Sites/WombatStateForest/Data/Profile/'
+    
+    # Construct irga_df
+    irga_fp_list = get_file_list(path, 'IRGA')
+    irga_df = pd.concat(map(open_data, irga_fp_list))
+    irga_df = prep_data(irga_df, '2T')
+    last_date = dt.datetime.strftime(irga_df.index[-1].to_datetime(), 
+                                     '%Y-%m-%d %H:%M:%S')
+    irga_drop_list[-1].insert(1, last_date)
+    irga_df = drop_data(irga_df, irga_drop_list)
+    CO2_lst = filter(lambda x: 'Cc' in x, irga_df.columns)
+    irga_df = filter_data(irga_df, 
+                          CO2_lst, 
+                          [300, 600])
+    trunc_irga_df = pdp.downsample_data(irga_df)
+    
+    # Construct met_df
+    Ta_fp_list = get_file_list(path, 'slow_met')
+    met_df = pd.concat(map(open_data, Ta_fp_list))
+    met_df = prep_data(met_df, '30T')
+    met_df = drop_data(met_df, Ta_drop_list)
+    
+    #Make output irga_df
+    output_irga_df = pd.DataFrame(index = trunc_irga_df.index)
+    output_CO2_lst = map(lambda x: 'CO2_{}'.format(x.split('_')[2]), CO2_lst)
+    for name_set in zip(CO2_lst, output_CO2_lst):
+        output_irga_df[name_set[1]] = trunc_irga_df[name_set[0]]
+    output_irga_df['Tair_30m'] = met_df['Ta_HMP_02_Avg']
+    output_irga_df['ps'] = met_df['ps_7500_Avg']
+
+    return output_irga_df
