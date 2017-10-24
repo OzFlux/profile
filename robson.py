@@ -12,6 +12,7 @@ import os
 import pandas as pd
 import pdb
 
+import profile_data_processing as pdp
 #------------------------------------------------------------------------------
 def make_date_iterator(df):
 
@@ -47,17 +48,21 @@ def make_result_dataframe(df, heights_list):
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------    
-def process_data_segment(sub_df, heights_list):
-    index_name = ((sub_df.index[0] + (sub_df.index[-1] - sub_df.index[0]) / 2)
-                  .round('min'))
-    sub_df['level'] = [str(x)[0] for x in sub_df['Level_&_Sample']]
-    levels_ref_dict = dict(zip([str(x) for x in range(1, 7)],
-                               ['CO2_{}m'.format(x) for x in heights_list]))
-    mean_df = sub_df.groupby('level').mean()['CO2_Li820']
-    for level in mean_df.index:
-        col_name = levels_ref_dict[level]
-        result_df.loc[index_name, col_name] = mean_df[level]
-    print index_name
+def process_data(df, date_iterator, heights_list):
+    df['level'] = [str(x)[0] for x in df['Level_&_Sample']]
+    for date_pair in date_iterator:
+        sub_df = df.loc[date_pair[0]: date_pair[1]].copy()
+        index_name = ((sub_df.index[0] + (sub_df.index[-1] - 
+                       sub_df.index[0]) / 2)
+                      .round('min'))
+        sub_df['level'] = [str(x)[0] for x in sub_df['Level_&_Sample']]
+        levels_ref_dict = dict(zip([str(x) for x in range(1, 7)],
+                                   ['CO2_{}m'.format(x) for x in heights_list]))
+        mean_df = sub_df.groupby('level').mean()['CO2_Li820']
+        for level in mean_df.index:
+            col_name = levels_ref_dict[level]
+            result_df.loc[index_name, col_name] = mean_df[level]
+        print index_name
 #------------------------------------------------------------------------------    
 
 #------------------------------------------------------------------------------    
@@ -88,23 +93,22 @@ def prep_data(df):
 
 # Set some constants
 #path = '/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/RobsonCreek/Robson_CR1k_fast_profile_2017-01.dat'
-path = '/home/ian/Desktop/Robson_CR1k_fast_profile_2017-02.dat'
+path = '/home/ian/OzFlux/Sites/RobsonCreek/Profile_data'
 heights_list = [2, 4, 8, 16, 32, 64]
-levels_ref_dict = dict(zip([str(x) for x in range(1, len(heights_list) + 1)],
-                           ['CO2_{}m'.format(str(x)) for x in heights_list]))
 
+# Construct and process IRGA dataset
 #irga_fp_list = get_file_list(path, 'fast_profile')
-irga_fp_list = ['/home/ian/Desktop/Robson_CR1k_fast_profile_2017-02.dat']
+irga_fp_list = ['/home/ian/OzFlux/Sites/RobsonCreek/Profile data/Robson_CR1k_fast_profile_2017-02.dat']
 irga_df = pd.concat(map(lambda x: open_data(x), irga_fp_list))
 prep_data(irga_df)
 filter_data(irga_df, 'CO2_Li820', [300, 900])
 result_df = make_result_dataframe(irga_df, heights_list)
-process_data(irga_df)
-
-# Get date pairs that mark the beginning and end of each contiguous data segment
 date_iterator = make_date_iterator(irga_df)
+process_data(irga_df, date_iterator, heights_list)
+#trunc_irga_df = pdp.downsample_data(result_df, smooth_window = 2)
 
-# Iterate over dates
-for date_pair in date_iterator:
-    process_data_segment(irga_df.loc[date_pair[0]: date_pair[1]].copy(),
-                         heights_list)
+
+## Iterate over dates
+#for date_pair in date_iterator:
+#    process_data_segment(irga_df.loc[date_pair[0]: date_pair[1]].copy(),
+#                         heights_list)
