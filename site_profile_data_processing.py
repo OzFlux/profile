@@ -10,6 +10,7 @@ import pandas as pd
 import datetime as dt
 import profile_data_processing as pdp
 import os
+import time
 import pdb
 
 #------------------------------------------------------------------------------
@@ -17,7 +18,7 @@ import pdb
 #------------------------------------------------------------------------------
 
 def get_site_data(site_name):
-    
+
     sites_dict = {'cumberland plains': cumberland_plains, 
                   'howard springs': howard_springs,
                   'warra_avg': warra_average,
@@ -49,8 +50,8 @@ def cumberland_plains():
     min_CO2 = 300    
     target_var = 'CO2_Avg'
     missing_data_float = -9999
-    input_profile_file_path = '/home/ian/OzFlux/Sites/CumberlandPlains/Data/Profile/EFS_S00_CO2PROFILE_R_2017.csv'
-    input_met_data_path = '/home/ian/OzFlux/Sites/CumberlandPlains/Data/Profile/EddyFlux_slow_met_2017.csv'
+    input_profile_file_path = '/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/CumberlandPlains/EFS_S00_CO2PROFILE_R_2017.csv'
+    input_met_data_path = '/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/CumberlandPlains/EddyFlux_slow_met_2017.csv'
     
     # Get data and create index 
     df = pd.read_csv(input_profile_file_path)
@@ -143,7 +144,7 @@ def cumberland_plains():
 def howard_springs():
 
 #    dir_str = pdp.dir_select_dialog()        
-    dir_str = '/home/ian/OzFlux/Sites/Howard_Springs/Data/Profile/'
+    dir_str = '/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/HowardSprings'
     dir_list = os.listdir(dir_str)
     dir_list = [f for f in dir_list if 'Howard_profile_Slow_avg' in f]
 
@@ -265,8 +266,13 @@ def warra_raw():
 def warra_average():
     
     def get_data(fp):
-        df = pd.read_csv(fp, skiprows = [0, 2, 3], na_values = 'NAN')
-        df.index = pd.to_datetime(df.TIMESTAMP)
+        try:
+            time.sleep(1)
+            df = pd.read_csv(fp, skiprows = [0, 2, 3], na_values = 'NAN',
+                             error_bad_lines = False)
+            df.index = pd.to_datetime(df.TIMESTAMP)
+        except Exception, e:
+            pdb.set_trace()
         return df
     
     def get_valve_num(idx):
@@ -295,7 +301,7 @@ def warra_average():
     # Prepare df: read in data and concatenate, sort by datetime index,
     # drop dupes, drop cases where seconds are not divisible by 15, 
     # reindex (thereby padding missing cases), then gapfill the valvenumber
-    path = '/media/ian/36D6-0A0C/'
+    path = '/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/Warra'
     fp_list = map(lambda x: os.path.join(path, x), os.listdir(path))
     df = pd.concat(map(get_data, fp_list))
     df.sort_index(inplace = True)
@@ -338,7 +344,7 @@ def whroo():
     """
  
     # Set locations   
-    path = '/home/ian/OzFlux/Sites/Whroo/Data/Processed/Profile/'
+    path = '/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/Whroo/'
     file_list = os.listdir(path)
     profile_file_list = [f for f in file_list if 'IRGA' in f]
     met_file_list = [f for f in file_list if not 'IRGA' in f]
@@ -369,8 +375,11 @@ def whroo():
     # drop duplicates and extraneous data and ensure no missing time stamps
     profile_df_list = []
     for f in profile_file_list:
-        this_df = pd.read_csv(os.path.join(path, f), skiprows = [0,2,3],
-                              na_values = 'NAN')
+        try:
+            this_df = pd.read_csv(os.path.join(path, f), skiprows = [0,2,3],
+                                  na_values = 'NAN')
+        except:
+            pdb.set_trace()
         profile_df_list.append(this_df)
     profile_df = pd.concat(profile_df_list)
     profile_df.drop_duplicates('TIMESTAMP', inplace = True)
