@@ -175,7 +175,7 @@ def downsample_data(df, output_freq = 30, smooth_window = 0):
     """
     This function downsamples profile data to the requested output frequency
     (generally 30 minutes);
-    - args: 'df' (pandas sdataframe with datetime index)
+    - args: 'df' (pandas dataframe with datetime index)
     - kwargs: 'output_freq' (int, minutes) - the output interval required
               'smooth_window' (int, minutes) - applies a centered running 
               average over the requested interval
