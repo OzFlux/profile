@@ -242,7 +242,7 @@ def get_layer_means(df, level_names, levels, layer_names):
 
 #------------------------------------------------------------------------------
 def get_raw_data(site, output_dir = False):
-    
+
     df = spdp.get_site_data(site)
     if output_dir:
         file_name = site + '_OzFlux_format_profile.csv'
@@ -397,9 +397,10 @@ def main(site = None, site_alt = None, use_Tair = None,
           warning message is printed to screen and the data is written to the 
           location documented in the message)
     """
-    
+
     reload(spdp)
 
+#    pdb.set_trace()
     # Either prompt for already formatted file, or prompt for directory 
     # containing unformatted file/s
     if site is None:
