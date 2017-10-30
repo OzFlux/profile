@@ -12,8 +12,6 @@ import os
 import pandas as pd
 import pdb
 
-import profile_data_processing as pdp
-
 #------------------------------------------------------------------------------    
 def filter_data(df, var, limits):
         df.loc[df[var] < limits[0], var] = np.nan
@@ -23,7 +21,7 @@ def filter_data(df, var, limits):
 #------------------------------------------------------------------------------    
 def get_file_list(path, word):
     f_list = filter(lambda x: word in x, os.listdir(path))
-    return map(lambda x: os.path.join(path, x), f_list)
+    return sorted(map(lambda x: os.path.join(path, x), f_list))
 #------------------------------------------------------------------------------    
 
 #------------------------------------------------------------------------------
@@ -62,9 +60,17 @@ def make_result_dataframe(df, heights_list):
 
 #------------------------------------------------------------------------------    
 def open_data(f_path):
-    df = pd.read_csv(f_path, skiprows = [0, 2, 3], na_values = 'NaN', 
-                     error_bad_lines = False)
-    df.index = pd.to_datetime(df.TIMESTAMP)
+    print f_path
+    dtype_dict = {'TIMESTAMP': 'str', 'RECORD': 'int', 'CO2_Li820': 'float',
+                  'MF_GFM17': 'float', 'Level_&_Sample': 'int'}
+    try:
+        df = pd.read_csv(f_path, skiprows = [0, 2, 3], na_values = 'NaN', 
+                         error_bad_lines = False, dtype = {'CO2_Li820': 'str'})
+    except Exception, e:
+        pdb.set_trace()
+    df.index = pd.to_datetime(df.TIMESTAMP, errors = 'coerce')
+    df = df[pd.notnull(df.index)]
+    df.drop('TIMESTAMP', axis = 1, inplace = True)
     return df
 #------------------------------------------------------------------------------    
 
@@ -86,7 +92,10 @@ def process_data(df, date_iterator, heights_list):
         sub_df['level'] = [str(x)[0] for x in sub_df['Level_&_Sample']]
         levels_ref_dict = dict(zip([str(x) for x in range(1, 7)],
                                    ['CO2_{}m'.format(x) for x in heights_list]))
-        mean_df = sub_df.groupby('level').mean()['CO2_Li820']
+        try:
+            mean_df = sub_df.groupby('level').mean()['CO2_Li820']
+        except:
+            pdb.set_trace()
         for level in mean_df.index:
             col_name = levels_ref_dict[level]
             result_df.loc[index_name, col_name] = mean_df[level]
@@ -95,20 +104,20 @@ def process_data(df, date_iterator, heights_list):
 
 # Set some constants
 #path = '/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/RobsonCreek/Robson_CR1k_fast_profile_2017-01.dat'
-path = '/home/ian/OzFlux/Sites/RobsonCreek/Profile data'
+path = '/home/ian/Desktop/Robson'
 heights_list = [1, 2, 3.5, 9, 21, 39]
 
 # Construct, process, smooth and downsample IRGA dataset
-#irga_fp_list = get_file_list(path, 'fast_profile')
-irga_fp_list = ['/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/RobsonCreek/Robson_CR1k_fast_profile_2016-01.dat']
+irga_fp_list = get_file_list(path, 'fast_profile')
+#irga_fp_list = ['/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/RobsonCreek/Robson_CR1k_fast_profile_2016-01.dat']
 irga_df = pd.concat(map(lambda x: open_data(x), irga_fp_list))
 prep_data(irga_df)
 filter_data(irga_df, 'CO2_Li820', [300, 900])
-result_df = make_result_dataframe(irga_df, heights_list)
-date_iterator = make_date_iterator(irga_df)
-process_data(irga_df, date_iterator, heights_list)
-result_df = result_df.rolling(window = 2).mean()
-result_df = result_df.resample('30T').mean()
+#result_df = make_result_dataframe(irga_df, heights_list)
+#date_iterator = make_date_iterator(irga_df)
+#process_data(irga_df, date_iterator, heights_list)
+#result_df = result_df.rolling(window = 2).mean()
+#result_df = result_df.resample('30T').mean()
 
 # Read met dataset
-irga_fp_list = get_file_list(path, 'fast_profile')
+#irga_fp_list = get_file_list(path, 'fast_profile')
