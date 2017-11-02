@@ -23,7 +23,9 @@ def get_data(f_path):
     print 'Processing file: {}'.format(os.path.basename(f_path))
     try:
         df = pd.read_csv(f_path, skiprows = [0, 2, 3], na_values = 'NaN', 
-                         error_bad_lines = False, dtype = {'CO2_Li820': 'float'})
+                         error_bad_lines = False, dtype = {'CO2_Li820': 'float',
+                                                           'Level_&_Sample':
+                                                               'int'})
     except Exception, e:
         pdb.set_trace()
     df.index = pd.to_datetime(df.TIMESTAMP, errors = 'coerce')
@@ -111,9 +113,16 @@ path = '/home/ian/Desktop/Robson'
 heights_list = [1, 2, 3.5, 9, 21, 39]
 
 # Construct, process, smooth and downsample IRGA dataset
-#irga_fp_list = get_file_list(path, 'fast_profile')
+irga_fp_list = get_file_list(path, 'fast_profile')
 irga_fp_list = ['/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/RobsonCreek/Robson_CR1k_fast_profile_2016-01.dat']
 irga_df = pd.concat(map(lambda x: get_data(x), irga_fp_list))
+irga_df['date'] = irga_df.index.to_pydatetime()
+irga_df['delta'] = map(lambda x: x.total_seconds(), 
+                       irga_df.date-irga_df.date.shift())
+locs = map(lambda x: irga_df.index.get_loc(x), 
+           irga_df[irga_df.delta > 0.2].index)
+
+
 
 #result_df = make_result_dataframe(irga_df, heights_list)
 #date_iterator = make_date_iterator(irga_df)
