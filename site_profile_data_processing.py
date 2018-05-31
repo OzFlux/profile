@@ -14,6 +14,7 @@ import pandas as pd
 import datetime as dt
 import os
 import time
+import xlrd
 import pdb
 
 #------------------------------------------------------------------------------
@@ -500,13 +501,15 @@ def warra_raw():
 def warra_average():
     
     def get_data(fp):
+        print 'Processing file {}'.format(fp)
         try:
             time.sleep(1)
             df = pd.read_csv(fp, skiprows = [0, 2, 3], na_values = 'NAN',
                              error_bad_lines = False)
             df.index = pd.to_datetime(df.TIMESTAMP)
         except Exception, e:
-            pdb.set_trace()
+            print 'Failed'
+            return
         return df
     
     def get_valve_num(idx):
@@ -535,7 +538,7 @@ def warra_average():
     # Prepare df: read in data and concatenate, sort by datetime index,
     # drop dupes, drop cases where seconds are not divisible by 15, 
     # reindex (thereby padding missing cases), then gapfill the valvenumber
-    path = '/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/Warra'
+    path = '/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/Warra/Raw_data/ASCII_2'
     fp_list = map(lambda x: os.path.join(path, x), os.listdir(path))
     df = pd.concat(map(get_data, fp_list))
     df.sort_index(inplace = True)
