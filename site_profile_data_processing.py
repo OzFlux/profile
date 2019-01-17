@@ -280,30 +280,34 @@ def robson_creek():
         result_df = make_result_dataframe(df)
         levels_ref_dict = dict(zip([str(x) for x in range(1, 7)],
                                    ['CO2_{}m'.format(x) for x in heights_list]))
-        for date_pair in make_date_iterator(df):
-            sub_df = df.loc[date_pair[0]: date_pair[1]].copy()
-            index_name = ((sub_df.index[0] + (sub_df.index[-1] - 
-                           sub_df.index[0]) / 2)
-                          .round('min'))
-            mean_df = sub_df.groupby('level').mean()['CO2_Li820']
-            for level in mean_df.index:
-                col_name = levels_ref_dict[level]
-                result_df.loc[index_name, col_name] = mean_df[level]
-            print index_name
+        try:
+            for date_pair in make_date_iterator(df):
+                sub_df = df.loc[date_pair[0]: date_pair[1]].copy()
+                index_name = ((sub_df.index[0] + (sub_df.index[-1] - 
+                               sub_df.index[0]) / 2)
+                              .round('min'))
+                mean_df = sub_df.groupby('level').mean()['CO2_Li820']
+                for level in mean_df.index:
+                    col_name = levels_ref_dict[level]
+                    result_df.loc[index_name, col_name] = mean_df[level]
+                print index_name
+        except:
+            pdb.set_trace()
         return result_df
     
     # Set some constants
-    path = '/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/RobsonCreek'
+    path = '/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/RobsonCreek/Raw_data'
     heights_list = [1, 2, 3.5, 9, 21, 39]
     bad_data_list = [['2017-05-10 00:00:00', '-']]
     
     # Construct, process, smooth and downsample IRGA dataset
-    irga_fp_list = get_file_list(path, 'fast_profile')
+#    irga_fp_list = ['/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/RobsonCreek/Raw_data/Robson_CR1k_fast_profile_2018-01.dat']
+    irga_fp_list = get_file_list(path, 'fast_profile')    
     irga_df = pd.concat(map(lambda x: get_irga_data(x), irga_fp_list))
     prep_data(irga_df)
     irga_df = irga_df.resample('2T').mean()
     irga_df = irga_df.resample('30T').pad()
-    
+
     # Get met dataset
     met_fp_list = get_file_list(path, 'RBS')
     met_df = pd.concat(map(lambda x: get_met_data(x), met_fp_list))
@@ -507,8 +511,12 @@ def warra_average():
             df = pd.read_csv(fp, skiprows = [0, 2, 3], na_values = 'NAN',
                              error_bad_lines = False)
             df.index = pd.to_datetime(df.TIMESTAMP)
-        except Exception, e:
-            print 'Failed'
+        except AttributeError, e:
+            df = pd.read_csv(fp, skiprows = [0, 2, 3], na_values = 'NAN',
+                             error_bad_lines = False, sep = '\t')
+            df.index = pd.to_datetime(df.TIMESTAMP)
+            return df
+            print e
             return
         return df
     
@@ -538,12 +546,17 @@ def warra_average():
     # Prepare df: read in data and concatenate, sort by datetime index,
     # drop dupes, drop cases where seconds are not divisible by 15, 
     # reindex (thereby padding missing cases), then gapfill the valvenumber
-    path = '/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/Warra/Raw_data/ASCII_2'
-    fp_list = map(lambda x: os.path.join(path, x), os.listdir(path))
+#    path = '/home/ian/ownCloud_dav/Shared/Monash-OzFlux/Profile_data/Warra/Raw_data/ASCII_2'
+    path = '/home/ian/Temp/ASCII3'
+    fp_list = sorted(map(lambda x: os.path.join(path, x), os.listdir(path)))
     df = pd.concat(map(get_data, fp_list))
+    pdb.set_trace()
     df.sort_index(inplace = True)
     df.drop_duplicates(inplace = True)
-    df.drop(df[df.index.second % 15 != 0].index)
+    df = df.loc[~df.index.duplicated(keep = 'first')]
+    drop_cases = df[df.index.second % 15 != 0].index
+    if not len(drop_cases) == 0: df.drop(drop_cases)
+#        df.drop(df[df.index.second % 15 != 0].index)
     new_index = pd.date_range(df.index[0], df.index[-1], freq='15S')
     df = df.reindex(new_index)
     df.valve_number = get_valve_num(df.index)
@@ -551,6 +564,8 @@ def warra_average():
     # Make a new df for the results
     idx = df[df.valve_number == 8].index
     rslt_df = pd.DataFrame(index = idx)
+
+    pdb.set_trace()
 
     # Cycle through time series and break out CO2 variable to individual 
     # heights on basis of valve number
@@ -717,7 +732,7 @@ def wombatstateforest():
     irga_fp_list = get_file_list(path, 'IRGA')
     irga_df = pd.concat(map(open_data, irga_fp_list))
     irga_df = prep_data(irga_df, '2T')
-    last_date = dt.datetime.strftime(irga_df.index[-1].to_datetime(), 
+    last_date = dt.datetime.strftime(irga_df.index[-1].to_pydatetime(), 
                                      '%Y-%m-%d %H:%M:%S')
     irga_drop_list[-1].insert(1, last_date)
     irga_df = drop_data(irga_df, irga_drop_list)
@@ -729,7 +744,7 @@ def wombatstateforest():
     
     # Construct met_df
     Ta_fp_list = get_file_list(path, 'slow_met')
-    met_df = pd.concat(map(open_data, Ta_fp_list))
+    met_df = pd.concat(map(open_data, Ta_fp_list), sort = True)
     met_df = prep_data(met_df, '30T')
     met_df = drop_data(met_df, Ta_drop_list)
     
