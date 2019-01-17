@@ -18,7 +18,9 @@ class profile(object):
     
     #--------------------------------------------------------------------------
     def __init__(self, df, use_T_var = None, use_P_var = None, site_alt = None):
-        
+        '''
+        Docstring here!
+        '''
         self.df = df
         self.interval = self._get_data_interval_mins()
         self._use_T_var = use_T_var
@@ -30,7 +32,7 @@ class profile(object):
         try:
             self.P_names = self._check_integrity(self._use_P_var, 'ps')
         except KeyError:
-            self.P_names = 'ps'
+            self.P_names = ['ps']
             self._make_ps()
     #--------------------------------------------------------------------------
     
@@ -142,26 +144,38 @@ class profile(object):
         data_list = []
         for this_set in var_set:
             co2, T, P = this_set[0], this_set[1], this_set[2]
-            molar_density_series = (self.df[P] * 10**3 / 
-                                    (8.3143 * (273.15 + self.df[T])))
+            try:
+                molar_density_series = (self.df[P] * 10**3 / 
+                                        (8.3143 * (273.15 + self.df[T])))
+            except:
+                pdb.set_trace()
             CO2_molar_density_series = (molar_density_series * 
                                         self.df[co2] * 10**-6)
             CO2_molar_density_series.name = co2
             data_list.append(CO2_molar_density_series)
         return pd.concat(data_list, axis = 1)
     #--------------------------------------------------------------------------    
+
+    #--------------------------------------------------------------------------    
+    def get_names(self, search_str = 'CO2'):
+        
+        names_list = sorted(filter(lambda x: search_str in x, self.df.columns))
+        if len(names_list) == 1: return names_list
+        numbers_list = map(lambda x: float(x.split('_')[1][:-1]), names_list)
+        index_arr = np.argsort(np.array(numbers_list))
+        return list(np.array(names_list)[index_arr])
+    #--------------------------------------------------------------------------
     
     #--------------------------------------------------------------------------    
     def get_storage_time_series(self, write_to_filepath = None):
         
         layer_df = self.get_layer_series()
         diff_df = (layer_df - layer_df.shift())
-        mult_dict = dict(zip(self.get_layer_names(), 
-                             self.get_layer_depths()))
-        name_dict = dict(zip(self.get_layer_names(), 
-                             self.get_layer_names('Sc')))
+        layer_names = self.get_layer_names()
+        mult_dict = dict(zip(layer_names, self.get_layer_depths()))
+        name_dict = dict(zip(layer_names, self.get_layer_names('Sc')))
         data_dict = []
-        for level_name in mult_dict.keys():
+        for level_name in layer_names:
             new_name = name_dict[level_name]
             s = (diff_df[level_name] / (self.interval * 60) * 10**6 *
                  mult_dict[level_name])
@@ -169,18 +183,11 @@ class profile(object):
             data_dict.append(s)
         output_df = pd.concat(data_dict, axis = 1)
         output_df['Sc_total'] = output_df.sum(axis = 1)
+        nans = np.isnan(output_df[output_df.columns[:-1]]).sum(axis=1) != 0
+        output_df.loc[nans, 'Sc_total'] = np.nan
         if write_to_filepath: self.write_to_file(write_to_filepath)
         return output_df
     #--------------------------------------------------------------------------    
-    
-    #--------------------------------------------------------------------------    
-    def get_names(self, search_str = 'CO2'):
-        
-        names_list = sorted(filter(lambda x: search_str in x, self.df.columns))
-        numbers_list = map(lambda x: float(x.split('_')[1][:-1]), names_list)
-        index_arr = np.argsort(np.array(numbers_list))
-        return list(np.array(names_list)[index_arr])
-    #--------------------------------------------------------------------------
     
     #--------------------------------------------------------------------------
     def plot_diel_average(self):
@@ -232,7 +239,7 @@ class profile(object):
         for i, var in enumerate(vars_list):
             color = plt.cm.cool(colour_idx[i])
             plt.plot(df.index, df[var], label = strip_vars_list[i], 
-                     color = color, alpha = 0.5)
+                     color = color, alpha = 0.4)
         plt.legend(loc='lower left', frameon = False, ncol = 2)
     #--------------------------------------------------------------------------
     
