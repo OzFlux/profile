@@ -9,14 +9,16 @@ Created on Thu Mar 12 16:41:00 2020
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
-import pdb
+
+#------------------------------------------------------------------------------
+### CLASSES ###
+#------------------------------------------------------------------------------
 
 class profile():
 
-    def __init__(self, ds, site, elevation):
+    def __init__(self, ds, site='Unknown'):
 
         self.dataset = ds
-        self.elevation = elevation
         self.site = site
 
     def get_heights(self):
@@ -95,10 +97,12 @@ class profile():
         """Get storage term summed over all layers"""
 
         da = self.get_delta_CO2_storage()
-        if not as_df: return da.sum('Layer')
-        return da.sum('Layer').to_dataframe()
+        if not as_df: return da.sum('Layer', skipna=False)
+        return da.sum('Layer', skipna=False).to_dataframe()
 
     def plot_diel_storage_mean(self):
+
+        """Plot the diel mean"""
 
         df = self.get_delta_CO2_storage(as_df=True)
         df['dCO2s_sum'] = df.sum(axis=1, skipna=False)
@@ -125,8 +129,59 @@ class profile():
         ax.plot(diel_df[diel_df.columns[-1]], label = labs[-1],
                 color='grey')
         ax.legend(loc=[0.65, 0.18], frameon = False, ncol = 2)
-        return
 
+    def plot_time_series(self):
+
+        """Plot the time series"""
+
+        df = self.get_delta_CO2_storage(as_df=True)
+        strip_vars_list = [var.split('_')[1] for var in df.columns]
+        fig, ax = plt.subplots(1, 1, figsize = (12, 8))
+        fig.patch.set_facecolor('white')
+        colour_idx = np.linspace(0, 1, len(df.columns))
+        ax.tick_params(axis = 'x', labelsize = 14)
+        ax.tick_params(axis = 'y', labelsize = 14)
+        ax.set_xlabel('$Date$', fontsize = 18)
+        ax.set_ylabel('$S_c\/(\mu mol\/CO_2\/m^{-2}\/s^{-1})$', fontsize = 18)
+        ax.xaxis.set_ticks_position('bottom')
+        ax.yaxis.set_ticks_position('left')
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        plt.plot(self.get_summed_delta_CO2_storage(as_df=True),
+                 label = 'Total', color = 'grey')
+        for i, var in enumerate(df.columns):
+            color = plt.cm.cool(colour_idx[i])
+            plt.plot(df[var], label = strip_vars_list[i], color = color)
+        plt.legend(loc='lower left', frameon = False, ncol = 2)
+
+    def write_to_csv(self, file_name):
+
+        df = self.get_delta_CO2_storage(as_df=True)
+        df['dCO2s_total'] = self.get_summed_delta_CO2_storage(as_df=True)
+        df.to_csv(file_name, index_label='DateTime')
+
+    def write_to_netcdf(self, file_path, attrs = None):
+
+        df = self.get_delta_CO2_storage(as_df=True)
+        df['dCO2s_total'] = self.get_summed_delta_CO2_storage(as_df=True)
+        ds = df.to_xarray()
+        ds.attrs = {'Site': self.site,
+                    'Heights (m)': ', '.join([str(i) for i in
+                                              self.get_heights()]),
+                    'Layer depths (m)': ', '.join([str(i) for i in
+                                                   self.get_layer_depths()])}
+        if attrs: ds.attrs.update(attrs)
+        ds.Time.encoding = {'units': 'days since 1800-01-01',
+                            '_FillValue': None}
+        ds.to_netcdf(file_path, format='NETCDF4')
+
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+### FUNCTIONS ###
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
 def _get_dataframe(this_da):
 
     df = this_da.to_dataframe().unstack()
@@ -134,3 +189,18 @@ def _get_dataframe(this_da):
     if df.columns.dtype == object:
         return df[this_da[this_da.dims[1]].data]
     return df
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+def get_func(site_name):
+
+    import Boyagin
+    import Warra
+    import WombatStateForest as WSF
+
+    funcs_dict = {'WombatStateForest': WSF,
+                  'Boyagin': Boyagin,
+                  'Warra': Warra}
+
+    return funcs_dict[site_name]
+#------------------------------------------------------------------------------
