@@ -75,14 +75,17 @@ def stack_to_series(df, name):
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
-def get_data(dir_path=None):
+### MAIN FUNCTION ###
+#------------------------------------------------------------------------------
 
-    # # Use internally defined path unless
-    if not dir_path: dir_path = path
+#------------------------------------------------------------------------------
+def get_data(path):
 
-    # Construct CO2 df
+    """Main function for converting raw data to profile-ready xarray format"""
+
+    # Construct CO2 series
     co2_series = (
-        open_data(file_dir=dir_path, word='IRGA',
+        open_data(file_dir=path, word='IRGA',
                   vars_to_import=irga_vars_to_import,
                   freq='2T')
         .pipe(resample_data)
@@ -93,13 +96,13 @@ def get_data(dir_path=None):
 
     # Construct temp and pressure df
     met_df = (
-        open_data(file_dir=dir_path, word='met', vars_to_import=met_vars_to_import,
+        open_data(file_dir=path, word='met', vars_to_import=met_vars_to_import,
                   freq='30T')
         .pipe(drop_data, met_drop_list)
         .reindex(co2_series.index.get_level_values(0).unique())
              )
 
-    # Construct temperature df
+    # Construct temperature series
     ta_series = (
         pd.concat([met_df.Ta_HMP_02_Avg.copy() for i in range(6)], axis=1,
                   ignore_index=True)
@@ -108,7 +111,7 @@ def get_data(dir_path=None):
         .pipe(stack_to_series, 'Tair')
                 )
 
-    # Construct pressure df
+    # Construct pressure series
     ps_series = (
         pd.concat([met_df.ps_7500_Avg.copy() for i in range(6)], axis=1,
                   ignore_index=True)
@@ -117,7 +120,7 @@ def get_data(dir_path=None):
         .pipe(stack_to_series, 'P')
                 )
 
-    # # Create xarray dataset
+    # Create xarray dataset
     return pd.concat([co2_series, ta_series, ps_series], axis=1).to_xarray()
 #------------------------------------------------------------------------------
 
@@ -132,17 +135,6 @@ irga_drop_list = [['2011-11-09 12:00', '2012-03-04 15:00'],
                   ['2015-10-06 03:00:00', '2020-02-03 08:00:00']]
 irga_vars_to_import=['TIMESTAMP', 'Cc_LI840_1m', 'Cc_LI840_2m', 'Cc_LI840_4m',
                      'Cc_LI840_8m', 'Cc_LI840_15m', 'Cc_LI840_30m']
-
 met_drop_list = [['2014-05-21 13:00:00', '2014-06-18 16:30:00']]
 met_vars_to_import=['TIMESTAMP', 'Ta_HMP_02_Avg', 'ps_7500_Avg']
-path = ('/home/unimelb.edu.au/imchugh/owncloud/Shared/Monash-OzFlux/'
-        'Profile_data/WombatStateForest/Profile_2012-2015/Raw_data/')
 #------------------------------------------------------------------------------
-
-#------------------------------------------------------------------------------
-### MAIN PROGRAM ###
-#------------------------------------------------------------------------------
-
-if __name__ == "__main__":
-
-    ds = get_data()

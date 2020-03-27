@@ -6,8 +6,10 @@ Created on Thu Mar 12 16:41:00 2020
 @author: imchugh
 """
 
+import configparser
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import xarray as xr
 
 #------------------------------------------------------------------------------
@@ -196,11 +198,25 @@ def get_func(site_name):
 
     import Boyagin
     import Warra
+    import Whroo
     import WombatStateForest as WSF
 
     funcs_dict = {'WombatStateForest': WSF,
                   'Boyagin': Boyagin,
+                  'Whroo': Whroo,
                   'Warra': Warra}
+    raw_data_read_path = get_configs()['raw_data_read_paths'][site_name]
+    return funcs_dict[site_name].get_data(raw_data_read_path)
+#------------------------------------------------------------------------------
 
-    return funcs_dict[site_name]
+#------------------------------------------------------------------------------
+def get_configs():
+
+    """Create a configuration file that defines requisite read and write paths
+       (reads from same dir as executing script - i.e. this one!)"""
+
+    path = os.path.join(os.path.dirname(__file__), 'paths.ini')
+    config = configparser.ConfigParser()
+    config.read(path)
+    return config
 #------------------------------------------------------------------------------

@@ -112,12 +112,15 @@ def stack_to_series(df, name):
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
-def get_data(dir_path=None):
+### MAIN FUNCTION ###
+#------------------------------------------------------------------------------
 
-    # Use internally defined path unless explicitly passed other
-    if not dir_path: dir_path = path
+#------------------------------------------------------------------------------
+def get_data(path):
 
-    df = open_data(dir_path)
+    """Main function for converting raw data to profile-ready xarray format"""
+
+    df = open_data(path)
     co2_df = make_co2_df(df, heights)
     ta_df = make_ta_df(df, heights)
     ps_df = ta_df.apply(get_pressure, site_alt=150)
@@ -130,14 +133,5 @@ def get_data(dir_path=None):
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
-path = '/home/unimelb.edu.au/imchugh/Downloads/Warra_profile/'
 heights = [2, 4, 8, 16, 30, 42, 54, 70]
 #------------------------------------------------------------------------------
-
-#------------------------------------------------------------------------------
-### MAIN PROGRAM ###
-#------------------------------------------------------------------------------
-
-if __name__ == "__main__":
-
-    ds = get_data()
