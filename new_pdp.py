@@ -197,12 +197,14 @@ def _get_dataframe(this_da):
 def get_func(site_name):
 
     import Boyagin
+    import CumberlandPlains
     import Warra
     import Whroo
     import WombatStateForest as WSF
 
     funcs_dict = {'WombatStateForest': WSF,
                   'Boyagin': Boyagin,
+                  'CumberlandPlains': CumberlandPlains,
                   'Whroo': Whroo,
                   'Warra': Warra}
     raw_data_read_path = get_configs()['raw_data_read_paths'][site_name]

@@ -42,7 +42,7 @@ def resample_data(df):
 #------------------------------------------------------------------------------
 def stack_to_series(df, name):
 
-    stacked_series = df.stack()
+    stacked_series = df.stack(dropna=False)
     stacked_series.name = name
     stacked_series.index.names = ['Time', 'Height']
     return stacked_series
