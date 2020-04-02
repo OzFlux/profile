@@ -26,7 +26,7 @@ def interpolate_T(df, T_height):
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
-def open_co2_data(dir_path, word, vars_to_import):
+def open_co2_data(dir_path, vars_to_import):
 
     parser = (lambda x, y:
               dt.datetime.combine(dt.datetime.strptime(x, '%d/%m/%Y').date(),
@@ -34,17 +34,17 @@ def open_co2_data(dir_path, word, vars_to_import):
     df = (pd.concat([pd.read_csv(x, parse_dates = [['Date', 'Time']],
                                  date_parser=parser,
                                  usecols=vars_to_import)
-                     for x in glob.glob(dir_path + '/*{}*'.format('CO2'))]))
+                     for x in glob.glob(dir_path + '/*CO2*')]))
     df.index = df.Date_Time + dt.timedelta(seconds=1)
     return df.drop('Date_Time', axis=1)
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
-def open_met_data(dir_path, word, vars_to_import):
+def open_met_data(dir_path, vars_to_import):
 
     df = (pd.concat([pd.read_csv(x, parse_dates = [['Date', 'Time']],
                                  usecols=vars_to_import)
-                     for x in glob.glob(dir_path + '/*{}*'.format('slow'))]))
+                     for x in glob.glob(dir_path + '/*slow*')]))
     df.index = df.Date_Time
     names_dict = {'ps_7500_Avg': 'ps', 'Ta_HMP_01_Avg': 'Ta_lower',
                   'Ta_HMP_155_Avg': 'Ta_upper'}

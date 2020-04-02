@@ -64,7 +64,6 @@ def get_data(path):
     cols = [x for x in df.columns if 'Cc' in x]
     heights = [float('.'.join(x.split('_')[2:]).replace('m', ''))
                for x in cols]
-
     co2_series = (
         df[cols]
         .rename(dict(zip(cols, heights)), axis=1)
