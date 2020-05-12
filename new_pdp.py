@@ -199,16 +199,19 @@ def get_func(site_name):
     import Boyagin
     import CumberlandPlains
     import HowardSprings
+    import Litchfield
     import Warra
     import Whroo
     import WombatStateForest as WSF
 
-    funcs_dict = {'WombatStateForest': WSF,
-                  'Boyagin': Boyagin,
+    funcs_dict = {'Boyagin': Boyagin,
                   'CumberlandPlains': CumberlandPlains,
                   'HowardSprings': HowardSprings,
+                  'Litchfield': Litchfield,
                   'Whroo': Whroo,
-                  'Warra': Warra}
+                  'Warra': Warra,
+                  'WombatStateForest': WSF}
+
     raw_data_read_path = get_configs()['raw_data_read_paths'][site_name]
     return funcs_dict[site_name].get_data(raw_data_read_path)
 #------------------------------------------------------------------------------
