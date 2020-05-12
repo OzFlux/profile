@@ -9,6 +9,7 @@ Created on Thu Apr  2 10:51:29 2020
 import glob
 import numpy as np
 import pandas as pd
+import pdb
 
 #------------------------------------------------------------------------------
 ### FUNCTIONS ###
@@ -36,8 +37,8 @@ def open_data(dir_path, col_names):
 
     co2_names = [x for x in col_names if 'Cc' in x]
     df = (
-       pd.concat([pd.read_csv(x, skiprows=[0,2,3], parse_dates=['TIMESTAMP'],
-                              index_col='TIMESTAMP')
+       pd.concat([pd.read_excel(x, skiprows=[0,2,3], parse_dates=['TIMESTAMP'],
+                                index_col='TIMESTAMP', usecols=col_names)
                   .pipe(rename_CO2, co2_names)
                   for x in glob.glob(dir_path + '/*profile*')])
        .drop_duplicates()
@@ -120,5 +121,9 @@ def get_data(path):
 variable_names = ['TIMESTAMP', 'Cc_LI840_1m', 'Cc_LI840_2m', 'Cc_LI840_4m',
                   'Cc_LI840_8m', 'Cc_LI840_15m', 'Cc_LI840_30m', 'T_air_Avg']
 co2_drop_list = [['2016-04-13 18:30', '2016-05-11 17:30']]
-# path = '/home/unimelb.edu.au/imchugh/Downloads/HowardSprings_profile'
+path = '/home/unimelb.edu.au/imchugh/Downloads/Litchfield_profile'
 #------------------------------------------------------------------------------
+
+if __name__ == "__main__":
+
+    df = open_data(dir_path=path, col_names=variable_names)
