@@ -37,7 +37,7 @@ def open_data(dir_path, col_names):
 
     co2_names = [x for x in col_names if 'Cc' in x]
     df = (
-       pd.concat([pd.read_excel(x, skiprows=[0,2,3], parse_dates=['TIMESTAMP'],
+       pd.concat([pd.read_csv(x, skiprows=[0,2,3], parse_dates=['TIMESTAMP'],
                                 index_col='TIMESTAMP', usecols=col_names)
                   .pipe(rename_CO2, co2_names)
                   for x in glob.glob(dir_path + '/*profile*')])
