@@ -16,6 +16,11 @@ import pandas as pd
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
+def drop_duplicate_data(df):
+    return df[~df.index.duplicated()]
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
 def get_pressure(T_series, site_alt):
 
     """Estimate pressure from altitude"""
@@ -66,6 +71,7 @@ def make_ta_df(df, heights):
     bool_idx = (np.mod(df.index.minute, 2) == 0) & (df.index.second == 0)
     cols = sorted([x for x in df.columns if 'T_air' in x])
     rename_dict = dict(zip(cols, heights))
+    T_fudge(df)
     return (
         df[cols][bool_idx]
         .rename(rename_dict, axis=1)
@@ -77,17 +83,23 @@ def make_ta_df(df, heights):
 #------------------------------------------------------------------------------
 def open_data(path):
 
+    def open_func(f, separator=','):
+        return pd.read_csv(f, sep=separator, parse_dates=['TIMESTAMP'],
+                           index_col=['TIMESTAMP'], skiprows=[0, 2, 3],
+                           na_values='NAN', error_bad_lines=False)
+
     df_list = []
-    for f in glob.glob(path + '/**/*')[1:]:
-        df_list.append(pd.read_csv(f, parse_dates=['TIMESTAMP'],
-                                   index_col=['TIMESTAMP'], skiprows=[0, 2, 3],
-                                   na_values='NAN', error_bad_lines=False))
+    for f in sorted(glob.glob(path + '/**/*')):
+        print ('Parsing file {}'.format(f))
+        try: df_list.append(open_func(f))
+        except ValueError: continue #df_list.append(open_func(f, separator='\t'))
+
     return (
         pd.concat(df_list)
         .sort_index()
-        .drop_duplicates()
+        .pipe(drop_duplicate_data)
         .pipe(reindex_data)
-           )
+            )
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
@@ -109,6 +121,12 @@ def stack_to_series(df, name):
     stacked_series.name = name
     stacked_series.index.names = ['Time', 'Height']
     return stacked_series
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+def T_fudge(df):
+    df['T_air_Avg(1)'] += 14.0
+    df['T_air_Avg(2)'] += 5.0
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
@@ -134,4 +152,5 @@ def get_data(path):
 
 #------------------------------------------------------------------------------
 heights = [2, 4, 8, 16, 30, 42, 54, 70]
+site_alt = 150
 #------------------------------------------------------------------------------
