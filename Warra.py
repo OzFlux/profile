@@ -10,14 +10,105 @@ import datetime as dt
 import glob
 import numpy as np
 import pandas as pd
+import pdb
+
+#------------------------------------------------------------------------------
+### CONSTANTS ###
+#------------------------------------------------------------------------------
+
+CLOCK_DICT = {'first_offset': {'offset_begin': '2020-06-16 04:40:15',
+                               'offset_end': '2020-08-',
+                               'offset_delta': ''},
+              'second_offset': ['', '2020-09-30 03:01:00']}
+
+EDT_DICT = {'offset_begin': '2020-10-06 11:48:15',
+            'offset_end': None}
+
+T_DICT = {'T_air_Avg(1)': {'offset_end': '2020-12-16 14:05:00',
+                           'offset_by': 14.0},
+          'T_air_Avg(2)': {'offset_end': '2020-12-16 14:05:00',
+                           'offset_by': 5.0}}
 
 #------------------------------------------------------------------------------
 ### FUNCTIONS ###
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
+def apply_time_correction(df):
+
+    # return df
+    error_offset_begin = '2020-06-16 04:40:15'
+    error_offset_end = '2020-09-30 03:01:00'
+    EDT_offset_begin = '2020-10-06 11:48:15'
+
+    # Subset the good data prior to clock error
+    unchanged_df = df.iloc[:df.index.get_loc(df.loc[error_offset_begin].name)]
+
+    # Subset a df that corrects edt to est
+    est_df = df.loc[EDT_offset_begin:]
+    est_df.index -= dt.timedelta(hours=1)
+
+    # Subset a df that corrects clock error
+    fixed_df = df.loc[error_offset_begin: error_offset_end]
+    delta_corr = est_df.index[0] - fixed_df.index[-1] - dt.timedelta(seconds=15)
+    fixed_df.index += delta_corr
+
+    # Concatenate
+    return pd.concat([unchanged_df.copy(), fixed_df.copy(), est_df.copy()])
+
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+def time_correction_tim(df):
+
+    offset_dict = {'clock_offset': {'begin': '2020-06-16 04:40:15',
+                                    'end': '2020-09-30 03:01:00'},
+                   'aedt_offset': {'begin': '2020-10-06 11:48:15',
+                                   'end': None}}
+
+    gap_dict = {'first': {'begin': '2020-06-16 04:40:00',
+                          'end': '2020-06-18 11:08:00'},
+                'second': {'begin': '2020-07-11 06:08:15',
+                           'end': '2020-07-11 07:14:15'},
+                'third': {'begin': '2020-08-14 14:54:15',
+                          'end': '2020-08-18 12:28:15'},
+                'fourth': {'begin': '2020-09-22 11:30:15',
+                            'end': '2020-09-22 14:00:15'}}
+
+    # Separate 3 subsets: the preserved subset;
+    #                     the subset to be corrected for clock loss;
+    #                     the subset to be corrected for AEDT error
+    preserve_df = (
+        df.loc[df.index<offset_dict['clock_offset']['begin']].copy()
+        )
+    AEST_df =  df.loc[offset_dict['aedt_offset']['begin']:].copy()
+    AEST_df.index -= dt.timedelta(hours=1)
+    df_list = [preserve_df, AEST_df]
+
+    # Now iterate on the time error subset
+    error_df = df.loc[offset_dict['clock_offset']['begin']:
+                      offset_dict['clock_offset']['end']].copy()
+    for i, gap in enumerate(gap_dict.keys()):
+        sub_dict = gap_dict[gap]
+        dt_begin = dt.datetime.strptime(sub_dict['begin'], '%Y-%m-%d %H:%M:%S')
+        dt_end = dt.datetime.strptime(sub_dict['end'], '%Y-%m-%d %H:%M:%S')
+        dt_delta = dt_end - dt_begin
+        if i == 0:
+            error_df.index = error_df.index + dt_delta
+        else:
+            df_list.append(error_df.loc[error_df.index<sub_dict['begin']].copy())
+            error_df = error_df.loc[sub_dict['begin']:]
+            error_df.index += dt_delta
+    df_list.append(error_df)
+    return pd.concat(df_list).sort_index()
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
 def drop_duplicate_data(df):
-    return df[~df.index.duplicated()]
+    nodupes_df = df[~df.index.duplicated()]
+    if not len(nodupes_df) == len(df):
+        print('Warning: duplicate timestamps with different data encountered!')
+    return nodupes_df
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
@@ -92,10 +183,16 @@ def open_data(path):
     for f in sorted(glob.glob(path + '/**/*')):
         print ('Parsing file {}'.format(f))
         try: df_list.append(open_func(f))
-        except ValueError: continue #df_list.append(open_func(f, separator='\t'))
+        except ValueError:
+            print ('ValueError! File not parsed'); continue
+        except OSError:
+            print ('OSError! File not parsed'); continue
+        #df_list.append(open_func(f, separator='\t'))
 
     return (
         pd.concat(df_list)
+        .drop_duplicates()
+        .pipe(time_correction_tim)
         .sort_index()
         .pipe(drop_duplicate_data)
         .pipe(reindex_data)
