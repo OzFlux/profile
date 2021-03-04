@@ -10,6 +10,7 @@ import datetime as dt
 import glob
 import numpy as np
 import pandas as pd
+from scipy.stats import linregress
 import pdb
 
 #------------------------------------------------------------------------------
@@ -24,10 +25,7 @@ CLOCK_DICT = {'first_offset': {'offset_begin': '2020-06-16 04:40:15',
 EDT_DICT = {'offset_begin': '2020-10-06 11:48:15',
             'offset_end': None}
 
-T_DICT = {'T_air_Avg(1)': {'offset_end': '2020-12-16 14:05:00',
-                           'offset_by': 14.0},
-          'T_air_Avg(2)': {'offset_end': '2020-12-16 14:05:00',
-                           'offset_by': 5.0}}
+T_DICT = {'offset_end': '2020-12-16 13:00:00'}
 
 #------------------------------------------------------------------------------
 ### FUNCTIONS ###
@@ -105,6 +103,7 @@ def time_correction_tim(df):
 
 #------------------------------------------------------------------------------
 def drop_duplicate_data(df):
+
     nodupes_df = df[~df.index.duplicated()]
     if not len(nodupes_df) == len(df):
         print('Warning: duplicate timestamps with different data encountered!')
@@ -162,7 +161,7 @@ def make_ta_df(df, heights):
     bool_idx = (np.mod(df.index.minute, 2) == 0) & (df.index.second == 0)
     cols = sorted([x for x in df.columns if 'T_air' in x])
     rename_dict = dict(zip(cols, heights))
-    T_fudge(df)
+    T_correct(df)
     return (
         df[cols][bool_idx]
         .rename(rename_dict, axis=1)
@@ -221,9 +220,40 @@ def stack_to_series(df, name):
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
-def T_fudge(df):
-    df['T_air_Avg(1)'] += 14.0
-    df['T_air_Avg(2)'] += 5.0
+def T_correct(df):
+
+    """Correct temperature using regressions built from data post-replacement
+       of erroneous sensors (2020-12-16 13:00); note - the lowest temperature
+       sensor has no seasonal signal, so we dump it rather than correct"""
+
+    # Make temperature dataframe
+    T_list = [x for x in df.columns if 'T_air' in x]
+    Tdf = df[T_list].copy()
+    Tdf[(Tdf < -20) | (Tdf > 50)] = np.nan
+    before_df = Tdf.loc[:'2020-12-16 13:00:00'].dropna().copy()
+    after_df = Tdf.loc['2020-12-16 13:00:00':].dropna().copy()
+
+    # Do T_air_Avg(2) correction
+    after_stats = linregress(after_df['T_air_Avg(3)'], after_df['T_air_Avg(2)'])
+    before_df['T_temp'] = (before_df['T_air_Avg(3)'] * after_stats.slope
+                           + after_stats.intercept)
+    before_stats = linregress(before_df['T_air_Avg(2)'],
+                              before_df['T_temp'])
+    df['T_air_Avg(2)'] = (
+        pd.concat([Tdf.loc[:'2020-12-16 13:00:00', 'T_air_Avg(2)'].iloc[:-1]
+                   * before_stats.slope + before_stats.intercept,
+                   Tdf.loc['2020-12-16 13:00:00':, 'T_air_Avg(2)']])
+        .reindex(Tdf.index)
+        )
+
+    # Do T_air_Avg(1) correction
+    after_stats = linregress(after_df['T_air_Avg(3)'], after_df['T_air_Avg(1)'])
+    df['T_air_Avg(1)'] = (
+    pd.concat([Tdf.loc[:'2020-12-16 13:00:00', 'T_air_Avg(3)'].iloc[:-1]
+               * after_stats.slope + after_stats.intercept,
+                Tdf.loc['2020-12-16 13:00:00':, 'T_air_Avg(1)']])
+    .reindex(Tdf.index)
+    )
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
