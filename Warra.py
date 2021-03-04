@@ -230,8 +230,8 @@ def T_correct(df):
     T_list = [x for x in df.columns if 'T_air' in x]
     Tdf = df[T_list].copy()
     Tdf[(Tdf < -20) | (Tdf > 50)] = np.nan
-    before_df = Tdf.loc[:'2020-12-16 13:00:00'].dropna().copy()
-    after_df = Tdf.loc['2020-12-16 13:00:00':].dropna().copy()
+    before_df = Tdf.loc[:T_DICT['offset_end']].dropna().copy()
+    after_df = Tdf.loc[T_DICT['offset_end']:].dropna().copy()
 
     # Do T_air_Avg(2) correction
     after_stats = linregress(after_df['T_air_Avg(3)'], after_df['T_air_Avg(2)'])
@@ -240,18 +240,18 @@ def T_correct(df):
     before_stats = linregress(before_df['T_air_Avg(2)'],
                               before_df['T_temp'])
     df['T_air_Avg(2)'] = (
-        pd.concat([Tdf.loc[:'2020-12-16 13:00:00', 'T_air_Avg(2)'].iloc[:-1]
+        pd.concat([Tdf.loc[:T_DICT['offset_end'], 'T_air_Avg(2)'].iloc[:-1]
                    * before_stats.slope + before_stats.intercept,
-                   Tdf.loc['2020-12-16 13:00:00':, 'T_air_Avg(2)']])
+                   Tdf.loc[T_DICT['offset_end']:, 'T_air_Avg(2)']])
         .reindex(Tdf.index)
         )
 
     # Do T_air_Avg(1) correction
     after_stats = linregress(after_df['T_air_Avg(3)'], after_df['T_air_Avg(1)'])
     df['T_air_Avg(1)'] = (
-    pd.concat([Tdf.loc[:'2020-12-16 13:00:00', 'T_air_Avg(3)'].iloc[:-1]
+    pd.concat([Tdf.loc[:T_DICT['offset_end'], 'T_air_Avg(3)'].iloc[:-1]
                * after_stats.slope + after_stats.intercept,
-                Tdf.loc['2020-12-16 13:00:00':, 'T_air_Avg(1)']])
+                Tdf.loc[T_DICT['offset_end']:, 'T_air_Avg(1)']])
     .reindex(Tdf.index)
     )
 #------------------------------------------------------------------------------
