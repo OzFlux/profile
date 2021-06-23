@@ -9,6 +9,19 @@ Created on Thu Mar 12 07:22:44 2020
 import numpy as np
 import pandas as pd
 
+import profile_utils as pu
+
+#-----------------------------------------------------------------------------
+### Variables ###
+#-----------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------
+date_start = '2019-09-20 16:00'
+vars_to_import = ['TIMESTAMP', 'Cc_LI840_0_5m',  'Cc_LI840_1m',  'Cc_LI840_3m',
+                  'Cc_LI840_6m', 'Cc_LI840_10m', 'Cc_LI840_16m',
+                  'Cc_LI840_23m', 'Cc_LI840_30m', 'T_panel_Avg', 'P_atm_Avg']
+#-----------------------------------------------------------------------------
+
 #------------------------------------------------------------------------------
 ### FUNCTIONS ###
 #------------------------------------------------------------------------------
@@ -53,12 +66,17 @@ def stack_to_series(df, name):
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
-def get_data(path):
+def get_data():
 
     """Main function for converting raw data to profile-ready xarray format"""
 
     # Open the data
-    df = open_data(path, vars_to_import)
+    data_path = pu.get_path(state='raw', series='profile', 
+                            site='Boyagin', check_exists=True)
+    df = pu.open_data(
+        file_dir=data_path, search_str='IRGA', vars_to_import=vars_to_import, 
+        freq='30T'
+        ).loc[date_start:]
 
     # Construct co2 df
     cols = [x for x in df.columns if 'Cc' in x]
@@ -90,15 +108,4 @@ def get_data(path):
 
     # Return xarray dataset
     return pd.concat([co2_series, ta_series, p_series], axis=1).to_xarray()
-#------------------------------------------------------------------------------
-
-#------------------------------------------------------------------------------
-### GLOBALS ###
-#------------------------------------------------------------------------------
-
-#------------------------------------------------------------------------------
-date_start = '2019-09-20 16:00'
-vars_to_import = ['TIMESTAMP', 'Cc_LI840_0_5m',  'Cc_LI840_1m',  'Cc_LI840_3m',
-                  'Cc_LI840_6m', 'Cc_LI840_10m', 'Cc_LI840_16m',
-                  'Cc_LI840_23m', 'Cc_LI840_30m', 'T_panel_Avg', 'P_atm_Avg']
-#------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------

@@ -6,15 +6,17 @@ Created on Thu Mar 12 16:41:00 2020
 @author: imchugh
 """
 
-import configparser
 import matplotlib.pyplot as plt
 import numpy as np
-import os
+import pdb
+import sys
 import xarray as xr
 
-#------------------------------------------------------------------------------
+import profile_utils as pu
+
+#-----------------------------------------------------------------------------
 ### CLASSES ###
-#------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 
 class profile():
 
@@ -48,7 +50,7 @@ class profile():
 
     def get_CO2_density(self, as_df=False):
 
-        """Calculate the density in mgCO2 m^-3 from n=PV/RT"""
+        """Calculate the density in mgCO2 m^-3 from ideal gas law"""
 
         CO2_const = 8.3143 / 44
         da = (self.dataset.P * 1000 /
@@ -102,7 +104,7 @@ class profile():
         if not as_df: return da.sum('Layer', skipna=False)
         return da.sum('Layer', skipna=False).to_dataframe()
 
-    def plot_diel_storage_mean(self):
+    def plot_diel_storage_mean(self, output_to_file=None):
 
         """Plot the diel mean"""
 
@@ -131,8 +133,9 @@ class profile():
         ax.plot(diel_df[diel_df.columns[-1]], label = labs[-1],
                 color='grey')
         ax.legend(loc=[0.65, 0.18], frameon = False, ncol = 2)
+        if output_to_file: plt.savefig(fname=output_to_file)
 
-    def plot_time_series(self):
+    def plot_time_series(self, output_to_file=None):
 
         """Plot the time series"""
 
@@ -155,6 +158,7 @@ class profile():
             color = plt.cm.cool(colour_idx[i])
             plt.plot(df[var], label = strip_vars_list[i], color = color)
         plt.legend(loc='lower left', frameon = False, ncol = 2)
+        if output_to_file: plt.savefig(fname=output_to_file)
 
     def write_to_csv(self, file_name):
 
@@ -177,13 +181,13 @@ class profile():
                             '_FillValue': None}
         ds.to_netcdf(file_path, format='NETCDF4')
 
-#------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 
-#------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 ### FUNCTIONS ###
-#------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 
-#------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 def _get_dataframe(this_da):
 
     df = this_da.to_dataframe().unstack()
@@ -191,16 +195,10 @@ def _get_dataframe(this_da):
     if df.columns.dtype == object:
         return df[this_da[this_da.dims[1]].data]
     return df
-#------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 
-#------------------------------------------------------------------------------
-def get_class(site_name):
-
-    return profile(get_func(site_name), site_name)
-#------------------------------------------------------------------------------
-
-#------------------------------------------------------------------------------
-def get_func(site_name):
+#-----------------------------------------------------------------------------
+def get_site_data(site):
 
     import Boyagin
     import CumberlandPlains
@@ -218,18 +216,20 @@ def get_func(site_name):
                   'Warra': Warra,
                   'WombatStateForest': WSF}
 
-    raw_data_read_path = get_configs()['raw_data_read_paths'][site_name]
-    return funcs_dict[site_name].get_data(raw_data_read_path)
-#------------------------------------------------------------------------------
+    return funcs_dict[site].get_data()
+#-----------------------------------------------------------------------------
 
-#------------------------------------------------------------------------------
-def get_configs():
+#-----------------------------------------------------------------------------
+### Main ###
+#-----------------------------------------------------------------------------
 
-    """Create a configuration file that defines requisite read and write paths
-       (reads from same dir as executing script - i.e. this one!)"""
+if __name__ == "__main__": 
 
-    path = os.path.join(os.path.dirname(__file__), 'paths.ini')
-    config = configparser.ConfigParser()
-    config.read(path)
-    return config
-#------------------------------------------------------------------------------
+    site = sys.argv[1]
+    profile_parser = profile(ds=get_site_data(site), site=site)
+    output_path = pu.get_path(state='processed', series='profile', site=site)
+    profile_parser.write_to_csv(output_path / 'storage.csv')
+    profile_parser.plot_time_series(output_to_file=output_path / 
+                                    'time_series.jpg')
+    profile_parser.plot_diel_storage_mean(output_to_file=output_path / 
+                                          'diel_mean.jpg')
