@@ -17,7 +17,7 @@ import profile_utils as pu
 
 #-----------------------------------------------------------------------------
 date_start = '2019-09-20 16:00'
-vars_to_import = ['TIMESTAMP', 'Cc_LI840_0_5m',  'Cc_LI840_1m',  'Cc_LI840_3m',
+vars_to_import = ['Cc_LI840_0_5m',  'Cc_LI840_1m',  'Cc_LI840_3m',
                   'Cc_LI840_6m', 'Cc_LI840_10m', 'Cc_LI840_16m',
                   'Cc_LI840_23m', 'Cc_LI840_30m', 'T_panel_Avg', 'P_atm_Avg']
 #-----------------------------------------------------------------------------
@@ -71,10 +71,10 @@ def get_data():
     """Main function for converting raw data to profile-ready xarray format"""
 
     # Open the data
-    data_path = pu.get_path(state='raw', series='profile', 
-                            site='Boyagin', check_exists=True)
+    data_path = pu.get_path(site='Boyagin', series='Profile', state='Raw',
+                            check_exists=True)
     df = pu.open_data(
-        file_dir=data_path, search_str='IRGA', vars_to_import=vars_to_import, 
+        file_dir=data_path, search_str='IRGA', vars_to_import=vars_to_import,
         freq='30T'
         ).loc[date_start:]
 
