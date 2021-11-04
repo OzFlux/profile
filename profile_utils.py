@@ -13,17 +13,33 @@ import pathlib
 import pdb
 
 #-----------------------------------------------------------------------------
+SERIES_LIST = ['flux', 'profile']
+STATE_LIST = ['raw', 'processed']
+#-----------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------
 def get_path(site, series, state, check_exists=False):
 
+    """Use initialisation file to extract data path for site, 
+       series and state"""    
+
+    config_map = {'raw': 'RAW_DATA_PATH', 'processed': 'PROCESSED_DATA_PATH'}
+    if not series in SERIES_LIST:
+            raise KeyError('series arg must be either {}'
+                           .format(' or '.join(SERIES_LIST)))
+    if not state in STATE_LIST:
+            raise KeyError('state arg must be either {}'
+                           .format(' or '.join(STATE_LIST)))
+    sub_path = config_map[state]
     config = ConfigParser()
     config.read(pathlib.Path(__file__).parent / 'paths.ini')
-    out_path = (
-        pathlib.Path(config['DEFAULT']['data_path']
-                     .format(site, series, state))
+    base_data_path = (
+        pathlib.Path(config['DEFAULT']['data_path'].replace('<site>', site))
         )
+    sub_data_path = config[config_map[state]][series]
+    out_path = base_data_path / sub_data_path
     if not check_exists: return out_path
     if not out_path.exists():
-        pdb.set_trace()
         raise FileNotFoundError('path does not exist')
     else:
         return out_path
@@ -32,7 +48,7 @@ def get_path(site, series, state, check_exists=False):
 #------------------------------------------------------------------------------
 def open_data(file_dir, search_str, freq, vars_to_import=None, start_year=None):
 
-    file_list = list(file_dir.rglob('*{}*.dat'.format(search_str)))
+    file_list = list(file_dir.rglob('*{}*'.format(search_str)))
     if  not file_list:
         raise FileNotFoundError('No files found containing searchphrase {}'
                                   .format(search_str))

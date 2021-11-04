@@ -53,9 +53,11 @@ class profile():
         """Calculate the density in mgCO2 m^-3 from ideal gas law"""
 
         CO2_const = 8.3143 / 44
-        da = (self.dataset.P * 1000 /
-              (CO2_const * (self.dataset.Tair + 273.15))
-              * self.dataset.CO2 / 10**3)
+        da = (
+            self.dataset.P * 1000 / 
+            (CO2_const * (self.dataset.Tair + 273.15)) *
+            self.dataset.CO2 / 10**3
+            )
         da.name = 'CO2_density'
         if not as_df: return da
         return _get_dataframe(da)
@@ -216,7 +218,10 @@ def get_site_data(site):
                   'Warra': Warra,
                   'WombatStateForest': WSF}
 
-    return funcs_dict[site].get_data()
+    path = pu.get_path(site=site, series='profile', state='raw',
+                       check_exists=True)
+
+    return funcs_dict[site].get_data(path=path)
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------

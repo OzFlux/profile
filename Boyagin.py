@@ -8,48 +8,23 @@ Created on Thu Mar 12 07:22:44 2020
 
 import numpy as np
 import pandas as pd
+import pdb
 
 import profile_utils as pu
 
 #-----------------------------------------------------------------------------
-### Variables ###
+### CONSTANTS ###
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
-date_start = '2019-09-20 16:00'
-vars_to_import = ['Cc_LI840_0_5m',  'Cc_LI840_1m',  'Cc_LI840_3m',
+DATE_START = '2019-09-20 16:00'
+VARS_TO_IMPORT = ['Cc_LI840_0_5m',  'Cc_LI840_1m',  'Cc_LI840_3m',
                   'Cc_LI840_6m', 'Cc_LI840_10m', 'Cc_LI840_16m',
                   'Cc_LI840_23m', 'Cc_LI840_30m', 'T_panel_Avg', 'P_atm_Avg']
 #-----------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
 ### FUNCTIONS ###
-#------------------------------------------------------------------------------
-
-#------------------------------------------------------------------------------
-def open_data(file_path, vars_to_import):
-
-    return (
-        pd.read_csv(file_path, parse_dates=['TIMESTAMP'], skiprows=[0, 2, 3],
-                    index_col=['TIMESTAMP'], usecols=vars_to_import,
-                    dtype={x: 'float' for x in vars_to_import})
-        .loc[date_start:]
-        .drop_duplicates()
-        .pipe(reindex_data)
-        .pipe(resample_data)
-           )
-#------------------------------------------------------------------------------
-
-#------------------------------------------------------------------------------
-def reindex_data(df):
-
-    return df.reindex(pd.date_range(df.index[0], df.index[-1], freq='2T'))
-#------------------------------------------------------------------------------
-
-#------------------------------------------------------------------------------
-def resample_data(df):
-
-    return df[np.mod(df.index.minute, 30) < 4].resample('30T').mean()
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
@@ -66,17 +41,18 @@ def stack_to_series(df, name):
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
-def get_data():
+def get_data(path):
 
     """Main function for converting raw data to profile-ready xarray format"""
 
-    # Open the data
-    data_path = pu.get_path(site='Boyagin', series='Profile', state='Raw',
-                            check_exists=True)
+    # Get dataframe
     df = pu.open_data(
-        file_dir=data_path, search_str='IRGA', vars_to_import=vars_to_import,
-        freq='30T'
-        ).loc[date_start:]
+        file_dir=path, search_str='IRGA', vars_to_import=VARS_TO_IMPORT,
+        freq='2T'
+        ).loc[DATE_START:]
+
+    # Resample dataframe (use mean of 28-30 and 0-2 minute samples)
+    df = df[np.mod(df.index.minute, 30) < 4].resample('30T').mean()
 
     # Construct co2 df
     cols = [x for x in df.columns if 'Cc' in x]
