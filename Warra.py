@@ -79,7 +79,7 @@ def time_correction_tim(df):
     preserve_df = (
         df.loc[df.index<offset_dict['clock_offset']['begin']].copy()
         )
-    AEST_df =  df.loc[offset_dict['aedt_offset']['begin']:].copy()
+    AEST_df = df.loc[offset_dict['aedt_offset']['begin']:].copy()
     AEST_df.index -= dt.timedelta(hours=1)
     df_list = [preserve_df, AEST_df]
 
@@ -161,7 +161,7 @@ def make_ta_df(df, heights):
     bool_idx = (np.mod(df.index.minute, 2) == 0) & (df.index.second == 0)
     cols = sorted([x for x in df.columns if 'T_air' in x])
     rename_dict = dict(zip(cols, heights))
-    T_correct(df)
+    # T_correct(df)
     return (
         df[cols][bool_idx]
         .rename(rename_dict, axis=1)
@@ -179,7 +179,7 @@ def open_data(path):
                            na_values='NAN', error_bad_lines=False)
 
     df_list = []
-    for f in sorted(glob.glob(path + '/**/*')):
+    for f in sorted(glob.glob(path + '/*.dat')):
         print ('Parsing file {}'.format(f))
         try: df_list.append(open_func(f))
         except ValueError:
@@ -237,6 +237,7 @@ def T_correct(df):
     after_stats = linregress(after_df['T_air_Avg(3)'], after_df['T_air_Avg(2)'])
     before_df['T_temp'] = (before_df['T_air_Avg(3)'] * after_stats.slope
                            + after_stats.intercept)
+    pdb.set_trace()
     before_stats = linregress(before_df['T_air_Avg(2)'],
                               before_df['T_temp'])
     df['T_air_Avg(2)'] = (

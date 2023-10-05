@@ -6,17 +6,26 @@ Created on Thu Mar 12 16:41:00 2020
 @author: imchugh
 """
 
+#------------------------------------------------------------------------------
+### IMPORTS ###
+#------------------------------------------------------------------------------
+
 import matplotlib.pyplot as plt
 import numpy as np
-import pdb
-import sys
 import xarray as xr
 
-import profile_utils as pu
+#------------------------------------------------------------------------------
+### CONSTANTS ###
+#------------------------------------------------------------------------------
+VALID_SITES = [
+    'Boyagin', 'CumberlandPlain', 'HowardSprings', 'Litchfield', 'Whroo',
+    'Warra', 'WombatStateForest'
+    ]
+#------------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 ### CLASSES ###
-#-----------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 
 class profile():
 
@@ -42,11 +51,14 @@ class profile():
 
         """Get name suffixes for layers"""
 
-        layer_elmts = [0] + self.get_heights()
-        str_layer_elmts = ([str(int(x)) if x==int(x) else str(x)
-                           for x in layer_elmts])
-        return ['{0}-{1}m'.format(str_layer_elmts[i-1], str_layer_elmts[i])
-                for i in range(1, len(str_layer_elmts))]
+        layer_elems = [
+            str(int(x)) if int(x) == x else int(x)
+            for x in [0] + self.get_heights()
+            ]
+        return [
+            f'{layer_elems[i-1]}-{layer_elems[i]}m'
+            for i in range(1, len(layer_elems))
+            ]
 
     def get_CO2_density(self, as_df=False):
 
@@ -54,7 +66,7 @@ class profile():
 
         CO2_const = 8.3143 / 44
         da = (
-            self.dataset.P * 1000 / 
+            self.dataset.P * 1000 /
             (CO2_const * (self.dataset.Tair + 273.15)) *
             self.dataset.CO2 / 10**3
             )
@@ -70,11 +82,15 @@ class profile():
 
         density_da = self.get_CO2_density()
         da_list = []
-        da_list.append(density_da.sel(Height=density_da.Height[0])
-                       .reset_coords('Height', drop=True))
+        da_list.append(
+            density_da.sel(Height=density_da.Height[0])
+            .reset_coords('Height', drop=True)
+            )
         for i in range(1, len(density_da.Height)):
-            da_list.append(density_da.sel(Height=density_da.Height[i-1: i+1])
-                           .mean('Height'))
+            da_list.append(
+                density_da.sel(Height=density_da.Height[i-1: i+1])
+                .mean('Height')
+                )
         layer_da = xr.concat(da_list, dim='Layer')
         layer_da['Layer'] = self._get_layer_names()
         layer_da = layer_da.transpose()
@@ -89,7 +105,6 @@ class profile():
         layer_da = layer_da / 44 * 10**3 # Convert g m^-3 to umol m^-3
         diff_da = layer_da - layer_da.shift(Time=1) # Difference
         diff_da = diff_da / 1800 # Divide by time interval
-        # Scale by layer depth
         depth_scalar = xr.DataArray(self.get_layer_depths(), dims='Layer')
         depth_scalar['Layer'] = diff_da.Layer.data
         diff_da = diff_da * depth_scalar
@@ -106,15 +121,20 @@ class profile():
         if not as_df: return da.sum('Layer', skipna=False)
         return da.sum('Layer', skipna=False).to_dataframe()
 
-    def plot_diel_storage_mean(self, output_to_file=None):
+    def plot_diel_storage_mean(self, output_to_file=None, open_window=True):
 
         """Plot the diel mean"""
 
+        # Organise the data
         df = self.get_delta_CO2_storage(as_df=True)
         df['dCO2s_sum'] = df.sum(axis=1, skipna=False)
         diel_df = df.groupby([df.index.hour, df.index.minute]).mean()
         diel_df.index = np.arange(len(diel_df)) / 2
         diel_df.index.name = 'Time'
+
+        # Now plot
+        if not open_window:
+            plt.ioff()
         fig, ax = plt.subplots(1, 1, figsize = (12, 8))
         ax.set_xlim([0, 24])
         ax.set_xticks([0,4,8,12,16,20,24])
@@ -136,13 +156,17 @@ class profile():
                 color='grey')
         ax.legend(loc=[0.65, 0.18], frameon = False, ncol = 2)
         if output_to_file: plt.savefig(fname=output_to_file)
+        plt.ion()
 
-    def plot_time_series(self, output_to_file=None):
+    def plot_time_series(self, output_to_file=None, open_window=True):
 
         """Plot the time series"""
 
         df = self.get_delta_CO2_storage(as_df=True)
         strip_vars_list = [var.split('_')[1] for var in df.columns]
+
+        if not open_window:
+            plt.ioff()
         fig, ax = plt.subplots(1, 1, figsize = (12, 8))
         fig.patch.set_facecolor('white')
         colour_idx = np.linspace(0, 1, len(df.columns))
@@ -161,6 +185,7 @@ class profile():
             plt.plot(df[var], label = strip_vars_list[i], color = color)
         plt.legend(loc='lower left', frameon = False, ncol = 2)
         if output_to_file: plt.savefig(fname=output_to_file)
+        plt.ion()
 
     def write_to_csv(self, file_name):
 
@@ -183,13 +208,13 @@ class profile():
                             '_FillValue': None}
         ds.to_netcdf(file_path, format='NETCDF4')
 
-#-----------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 ### FUNCTIONS ###
-#-----------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 def _get_dataframe(this_da):
 
     df = this_da.to_dataframe().unstack()
@@ -197,44 +222,37 @@ def _get_dataframe(this_da):
     if df.columns.dtype == object:
         return df[this_da[this_da.dims[1]].data]
     return df
-#-----------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------
-def get_site_data(site):
+#------------------------------------------------------------------------------
+def get_site_profile_dataset(site):
 
-    import Boyagin
-    import CumberlandPlains
-    import HowardSprings
-    import Litchfield
-    import Warra
-    import Whroo
-    import WombatStateForest as WSF
+    if not site in VALID_SITES:
+        raise KeyError('Site not recognised!')
 
-    funcs_dict = {'Boyagin': Boyagin,
-                  'CumberlandPlains': CumberlandPlains,
-                  'HowardSprings': HowardSprings,
-                  'Litchfield': Litchfield,
-                  'Whroo': Whroo,
-                  'Warra': Warra,
-                  'WombatStateForest': WSF}
+    if site == 'Boyagin':
+        import Boyagin_profile as prof_mod
+    elif site == 'CumberlandPlain':
+        import CumberlandPlain_profile as prof_mod
+    elif site == 'HowardSprings':
+        import HowardSprings as prof_mod
+    elif site == 'Litchfield':
+        import Litchfield as prof_mod
+    elif site == 'Warra':
+        import Warra as prof_mod
+    elif site == 'Whroo':
+        import Whroo as prof_mod
+    elif site == 'WombatStateForest':
+        import WSF as prof_mod
 
-    path = pu.get_path(site=site, series='profile', state='raw',
-                       check_exists=True)
+    return prof_mod.return_data()
+#------------------------------------------------------------------------------
 
-    return funcs_dict[site].get_data(path=path)
-#-----------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+def get_site_profile_class(site):
 
-#-----------------------------------------------------------------------------
-### Main ###
-#-----------------------------------------------------------------------------
-
-if __name__ == "__main__": 
-
-    site = sys.argv[1]
-    profile_parser = profile(ds=get_site_data(site), site=site)
-    output_path = pu.get_path(state='processed', series='profile', site=site)
-    profile_parser.write_to_csv(output_path / 'storage.csv')
-    profile_parser.plot_time_series(output_to_file=output_path / 
-                                    'time_series.jpg')
-    profile_parser.plot_diel_storage_mean(output_to_file=output_path / 
-                                          'diel_mean.jpg')
+    return profile(
+        ds=get_site_profile_dataset(site=site),
+        site=site
+        )
+#------------------------------------------------------------------------------
