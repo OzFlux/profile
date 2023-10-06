@@ -12,6 +12,7 @@ Created on Thu Mar 12 16:41:00 2020
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import xarray as xr
 
 #------------------------------------------------------------------------------
@@ -184,6 +185,40 @@ class profile():
             color = plt.cm.cool(colour_idx[i])
             plt.plot(df[var], label = strip_vars_list[i], color = color)
         plt.legend(loc='lower left', frameon = False, ncol = 2)
+        if output_to_file: plt.savefig(fname=output_to_file)
+        plt.ion()
+
+    def plot_vertical_evolution_mean(self, output_to_file, open_window=True):
+
+        df = self.dataset.to_dataframe().unstack()['CO2']
+        grp_df = df.groupby([df.index.hour, df.index.minute]).mean()
+        grp_df.index = np.linspace(0, 23.5, 48)
+        grp_df.columns.name = 'Height'
+        transform_df = pd.concat([grp_df.loc[x] for x in np.linspace(0,21,8)], axis=1).T
+        transform_df.index.name = 'Time'
+
+        if not open_window:
+            plt.ioff()
+
+        fig, ax = plt.subplots(1, 1, figsize = (12, 8))
+        colour_idx = np.linspace(0, 1, len(transform_df))
+        ax.tick_params(axis = 'x', labelsize = 14)
+        ax.tick_params(axis = 'y', labelsize = 14)
+        ax.set_xlabel('$CO2\/(\mu mol/mol)$', fontsize = 18)
+        ax.set_ylabel('$Height\/(m)$', fontsize = 18)
+        ax.xaxis.set_ticks_position('bottom')
+        ax.yaxis.set_ticks_position('left')
+        ax.set_ylim([transform_df.columns.min(), transform_df.columns.max()])
+        ax.set_yticks(transform_df.columns.tolist())
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        for i, time in enumerate(transform_df.index):
+            color = plt.cm.jet(colour_idx[i])
+            ax.plot(
+                transform_df.loc[time], transform_df.columns,
+                color=color, lw=2,
+                label=f'{str(int(time)).zfill(2)}00')
+        ax.legend(loc='upper right', frameon=False)
         if output_to_file: plt.savefig(fname=output_to_file)
         plt.ion()
 

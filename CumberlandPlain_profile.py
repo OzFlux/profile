@@ -178,8 +178,12 @@ def return_data():
         .pipe(convert_pressure)
         )
 
-    # return [co2_series, ta_series, p_series]
-    return pd.concat([co2_series, ta_series, p_series], axis=1).to_xarray()
+    # Concatenate xarray dataset, assign variable attrs and return
+    ds = pd.concat([co2_series, ta_series, p_series], axis=1).to_xarray()
+    ds.CO2.attrs = {'units': 'umol/mol'}
+    ds.Tair.attrs = {'units': 'degC'}
+    ds.P.attrs = {'units': 'kPa'}
+    return ds
 #------------------------------------------------------------------------------
 
 test = return_data()
