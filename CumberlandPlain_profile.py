@@ -18,8 +18,8 @@ sys.path.append(
 import pandas as pd
 
 # Custom imports
-import paths_manager as pm
-import toa5_handler as toa5
+from paths_manager import SitePaths
+import file_io
 
 #------------------------------------------------------------------------------
 ### CONSTANTS ###
@@ -44,7 +44,7 @@ P_VARS_TO_IMPORT = ['air_pressure', 'air_temperature']
 ### CLASS INSTANCES ###
 #------------------------------------------------------------------------------
 
-paths = pm.paths()
+paths = SitePaths(site='CumberlandPlain')
 
 #------------------------------------------------------------------------------
 
@@ -117,10 +117,9 @@ def timestack_co2_data(df):
 def get_data(filename, stream, cols=None):
 
     return (
-        toa5.get_TOA5_data(
-            file=paths.get_local_path(
-                resource='data', stream=stream, site='CumberlandPlain'
-                ) / filename,
+        file_io.get_data(
+            file=paths.local_data[stream] / filename,
+            file_type='TOA5',
             usecols=cols
             )
         .drop_duplicates()
@@ -185,5 +184,3 @@ def return_data():
     ds.P.attrs = {'units': 'kPa'}
     return ds
 #------------------------------------------------------------------------------
-
-test = return_data()

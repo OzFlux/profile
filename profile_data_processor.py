@@ -53,7 +53,7 @@ class profile():
         """Get name suffixes for layers"""
 
         layer_elems = [
-            str(int(x)) if int(x) == x else int(x)
+            str(int(x)) if int(x) == x else str(x)
             for x in [0] + self.get_heights()
             ]
         return [

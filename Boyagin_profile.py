@@ -13,8 +13,8 @@ import sys
 sys.path.append(
     str(pathlib.Path(__file__).parent.parent.resolve() / 'VM_data_acquisition')
     )
-import paths_manager as pm
-import toa5_handler as toa5
+from paths_manager import SitePaths
+import file_io as io
 
 #------------------------------------------------------------------------------
 ### CONSTANTS ###
@@ -33,7 +33,7 @@ VARS_TO_IMPORT = ['Cc_LI840_0_5m',  'Cc_LI840_1m',  'Cc_LI840_3m',
 ### CLASS INSTANTIATIONS ###
 #------------------------------------------------------------------------------
 
-paths = pm.paths()
+paths = SitePaths(site='Boyagin')
 
 #------------------------------------------------------------------------------
 
@@ -61,13 +61,13 @@ def return_data():
 
     # Get dataframe and grab the mean of the 2
     profile_df = (
-        toa5.get_TOA5_data(
-            file=paths.get_local_path(
-                resource='data', stream='profile_raw', site='Boyagin'
-                ) / PROFILE_FILE_NAME,
+        io.get_data(
+            file=paths.local_data.profile_raw / PROFILE_FILE_NAME,
+            file_type='TOA5',
             usecols=VARS_TO_IMPORT
             )
         .loc[DATE_START:]
+        .drop('TIMESTAMP', axis=1)
         )
 
     # Resample dataframe (use mean of 28-30 and 0-2 minute samples)
@@ -114,11 +114,7 @@ def return_data():
 
     # Temporarily construct the temperature data from a different dataset
     temp_df = (
-        toa5.get_TOA5_data(
-            file=paths.get_local_path(
-                resource='data', stream='flux_slow', site='Boyagin'
-                ) / TEMPERATURE_FILE_NAME
-            )
+        io.get_data(file=paths.local_data.flux_slow / TEMPERATURE_FILE_NAME)
         .loc[DATE_START:]
         )
 
@@ -141,4 +137,4 @@ def return_data():
     ds.Tair.attrs = {'units': 'degC'}
     ds.P.attrs = {'units': 'kPa'}
     return ds
-#-----------------------------------------------------------------------------
+#------------------------------------------------------------------------------
