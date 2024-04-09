@@ -18,10 +18,22 @@ import xarray as xr
 #------------------------------------------------------------------------------
 ### CONSTANTS ###
 #------------------------------------------------------------------------------
+R = 8.3143
+CO2_molar_mass = 44
 VALID_SITES = [
     'Boyagin', 'CumberlandPlain', 'HowardSprings', 'Litchfield', 'Whroo',
     'Warra', 'WombatStateForest'
     ]
+COLORS_DICT = {
+    'rtmc': {
+        'background_color': (30/255, 30/255, 30/255),
+        'font_color': 'white'
+        },
+    'standard': {
+        'background_color': 'white',
+        'font_color': 'black'
+        }
+    }
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
@@ -65,7 +77,7 @@ class profile():
 
         """Calculate the density in mgCO2 m^-3 from ideal gas law"""
 
-        CO2_const = 8.3143 / 44
+        CO2_const = R / CO2_molar_mass
         da = (
             self.dataset.P * 1000 /
             (CO2_const * (self.dataset.Tair + 273.15)) *
@@ -122,7 +134,9 @@ class profile():
         if not as_df: return da.sum('Layer', skipna=False)
         return da.sum('Layer', skipna=False).to_dataframe()
 
-    def plot_diel_storage_mean(self, output_to_file=None, open_window=True):
+    def plot_diel_storage_mean(
+            self, output_to_file=None, open_window=True, rtmc_opt=False
+            ):
 
         """Plot the diel mean"""
 
@@ -139,14 +153,6 @@ class profile():
         fig, ax = plt.subplots(1, 1, figsize = (12, 8))
         ax.set_xlim([0, 24])
         ax.set_xticks([0,4,8,12,16,20,24])
-        ax.tick_params(axis = 'x', labelsize = 14)
-        ax.tick_params(axis = 'y', labelsize = 14)
-        ax.set_xlabel('$Time$', fontsize = 18)
-        ax.set_ylabel('$S_c\/(\mu mol\/CO_2\/m^{-2}\/s^{-1})$', fontsize = 18)
-        ax.xaxis.set_ticks_position('bottom')
-        ax.yaxis.set_ticks_position('left')
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
         ax.axhline(0, color='black', ls=':')
         colour_idx = np.linspace(0, 1, len(diel_df.columns[:-1]))
         labs = [x.split('_')[1] for x in diel_df.columns]
@@ -155,7 +161,21 @@ class profile():
             ax.plot(diel_df[var], label = labs[i], color = color)
         ax.plot(diel_df[diel_df.columns[-1]], label = labs[-1],
                 color='grey')
-        ax.legend(loc=[0.65, 0.18], frameon = False, ncol = 2)
+
+        ax.legend(loc=[0.65, 0.18], frameon=False, ncol=2)
+        col_scheme = 'standard'
+        if rtmc_opt:
+            col_scheme = 'rtmc'
+        self._set_plot_configs(
+            fig=fig,
+            ax=ax,
+            which=col_scheme,
+            xlabel='$Time$',
+            ylabel='$S_c\/(\mu mol\/CO_2\/m^{-2}\/s^{-1})$',
+            legend_loc='lower right',
+            title='$CO_2\/storage\/evolution\/by\/layer$'
+            )
+
         if output_to_file: plt.savefig(fname=output_to_file)
         plt.ion()
 
@@ -188,8 +208,11 @@ class profile():
         if output_to_file: plt.savefig(fname=output_to_file)
         plt.ion()
 
-    def plot_vertical_evolution_mean(self, output_to_file, open_window=True):
+    def plot_vertical_evolution_mean(
+            self, output_to_file, open_window=True, rtmc_opt=False
+            ):
 
+        # Get data into shape
         df = self.dataset.to_dataframe().unstack()['CO2']
         grp_df = df.groupby([df.index.hour, df.index.minute]).mean()
         grp_df.index = np.linspace(0, 23.5, 48)
@@ -197,30 +220,58 @@ class profile():
         transform_df = pd.concat([grp_df.loc[x] for x in np.linspace(0,21,8)], axis=1).T
         transform_df.index.name = 'Time'
 
+        # Switch off plotting for background processing
         if not open_window:
             plt.ioff()
 
-        fig, ax = plt.subplots(1, 1, figsize = (12, 8))
+        # Plot data
+        fig, ax = plt.subplots(1, 1, figsize = (10, 10))
         colour_idx = np.linspace(0, 1, len(transform_df))
-        ax.tick_params(axis = 'x', labelsize = 14)
-        ax.tick_params(axis = 'y', labelsize = 14)
-        ax.set_xlabel('$CO2\/(\mu mol/mol)$', fontsize = 18)
-        ax.set_ylabel('$Height\/(m)$', fontsize = 18)
-        ax.xaxis.set_ticks_position('bottom')
-        ax.yaxis.set_ticks_position('left')
-        ax.set_ylim([transform_df.columns.min(), transform_df.columns.max()])
-        ax.set_yticks(transform_df.columns.tolist())
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
         for i, time in enumerate(transform_df.index):
             color = plt.cm.jet(colour_idx[i])
             ax.plot(
                 transform_df.loc[time], transform_df.columns,
                 color=color, lw=2,
                 label=f'{str(int(time)).zfill(2)}00')
-        ax.legend(loc='upper right', frameon=False)
+
+        # Configure plot
+        col_scheme = 'standard'
+        if rtmc_opt:
+            col_scheme = 'rtmc'
+            title = '$CO_2\/time\/evolution\/by\/height$'
+        self._set_plot_configs(
+            fig=fig,
+            ax=ax,
+            which=col_scheme,
+            xlabel='$CO_2\/(\mu mol/mol)$',
+            ylabel='$Height\/(m)$',
+            legend_loc='upper right',
+            title=title
+            )
+
+        # Output options
         if output_to_file: plt.savefig(fname=output_to_file)
         plt.ion()
+
+    def _set_plot_configs(self, fig, ax, which, **kwargs):
+
+        detail_color = COLORS_DICT[which]['font_color']
+        bkgrnd_color = COLORS_DICT[which]['background_color']
+        fig.patch.set_facecolor(color=bkgrnd_color)
+        ax.set_facecolor(color=bkgrnd_color)
+        for axis in ['x', 'y']:
+            ax.tick_params(axis=axis, color=detail_color, labelcolor=detail_color)
+        for spine in ['right', 'top']:
+            ax.spines[spine].set_visible(False)
+        ax.set_xlabel(kwargs['xlabel'], fontsize=18, color=detail_color)
+        ax.set_ylabel(kwargs['ylabel'], fontsize=18, color=detail_color)
+        ax.spines['left'].set_color(detail_color)
+        ax.spines['bottom'].set_color(detail_color)
+        ax.legend(
+            loc=kwargs['legend_loc'], frameon=False, labelcolor=detail_color
+            )
+        if which == 'rtmc':
+            fig.suptitle(kwargs['title'], fontsize=20, color=detail_color)
 
     def write_to_csv(self, file_name):
 
@@ -228,7 +279,7 @@ class profile():
         df['dCO2s_total'] = self.get_summed_delta_CO2_storage(as_df=True)
         df.to_csv(file_name, index_label='DateTime')
 
-    def write_to_netcdf(self, file_path, attrs = None):
+    def write_to_netcdf(self, file_path, attrs=None):
 
         df = self.get_delta_CO2_storage(as_df=True)
         df['dCO2s_total'] = self.get_summed_delta_CO2_storage(as_df=True)
